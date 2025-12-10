@@ -61,14 +61,21 @@ const TabsNavigation = () => {
 						),
 					}}
 				/>
-				<Tabs.Screen
-					name="artists"
-					options={{
-						title: 'Artists',
-						tabBarIcon: ({ color }) => <FontAwesome6 name="users-line" size={20} color={color} />,
-					}}
-				/>
-			</Tabs>
+			<Tabs.Screen
+				name="artists"
+				options={{
+					title: 'Artists',
+					tabBarIcon: ({ color }) => <FontAwesome6 name="users-line" size={20} color={color} />,
+				}}
+			/>
+			<Tabs.Screen
+				name="profile"
+				options={{
+					title: 'Profile',
+					tabBarIcon: ({ color }) => <Ionicons name="person-circle-outline" size={24} color={color} />,
+				}}
+			/>
+		</Tabs>
 
 			<FloatingPlayer
 				style={{
