@@ -1,16 +1,21 @@
 import { FloatingPlayer } from '@/components/FloatingPlayer'
-import { colors, fontSize } from '@/constants/tokens'
+import { fontSize } from '@/constants/tokens'
+import { useIsDark, useTheme } from '@/store/theme'
 import { FontAwesome, FontAwesome6, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
 import { Tabs } from 'expo-router'
 import { StyleSheet } from 'react-native'
 
 const TabsNavigation = () => {
+	const colors = useTheme()
+	const isDark = useIsDark()
+
 	return (
 		<>
 			<Tabs
 				screenOptions={{
 					tabBarActiveTintColor: colors.primary,
+					tabBarInactiveTintColor: colors.textMuted,
 					tabBarLabelStyle: {
 						fontSize: fontSize.xs,
 						fontWeight: '500',
@@ -22,10 +27,12 @@ const TabsNavigation = () => {
 						borderTopRightRadius: 20,
 						borderTopWidth: 0,
 						paddingTop: 8,
+						backgroundColor: isDark ? 'transparent' : colors.surface,
 					},
 					tabBarBackground: () => (
 						<BlurView
 							intensity={95}
+							tint={isDark ? 'dark' : 'light'}
 							style={{
 								...StyleSheet.absoluteFillObject,
 								overflow: 'hidden',
