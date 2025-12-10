@@ -1,23 +1,64 @@
 import library from '@/assets/data/library.json'
 import { unknownTrackImageUri } from '@/constants/images'
-import { Artist, Playlist, TrackWithPlaylist } from '@/helpers/types'
-import { api } from '@/services/api'
+import { Artist, Playlist, TrackWithPlaylist, UserPlaylist } from '@/helpers/types'
+import { api, UserPlaylistResponse } from '@/services/api'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Track } from 'react-native-track-player'
 import { create } from 'zustand'
 
+const DEVICE_ID_KEY = '@music_app_device_id'
+
+const getOrCreateDeviceId = async (): Promise<string> => {
+	let deviceId = await AsyncStorage.getItem(DEVICE_ID_KEY)
+	if (!deviceId) {
+		deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+		await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId)
+	}
+	return deviceId
+}
+
+const mapUserPlaylistResponse = (playlist: UserPlaylistResponse): UserPlaylist => ({
+	_id: playlist._id,
+	name: playlist.name,
+	description: playlist.description,
+	artwork: playlist.artwork,
+	isPublic: playlist.isPublic,
+	tracks: (playlist.tracks || []).map((t) => ({
+		_id: t._id,
+		url: t.url,
+		title: t.title,
+		artist: t.artist,
+		artwork: t.artwork,
+		rating: t.rating,
+		playlist: t.playlist,
+		duration: t.duration,
+	})),
+	trackCount: playlist.trackCount || 0,
+	createdAt: playlist.createdAt,
+	updatedAt: playlist.updatedAt,
+})
+
 interface LibraryState {
 	tracks: TrackWithPlaylist[]
+	userPlaylists: UserPlaylist[]
+	deviceId: string | null
 	isLoading: boolean
 	error: string | null
 	isOffline: boolean
 	fetchTracks: () => Promise<void>
+	fetchUserPlaylists: () => Promise<void>
 	toggleTrackFavorite: (track: Track) => Promise<void>
-	addToPlaylist: (track: Track, playlistName: string) => Promise<void>
+	addToPlaylist: (track: Track, playlistId: string) => Promise<void>
+	removeFromPlaylist: (track: Track, playlistId: string) => Promise<void>
+	createPlaylist: (playlistName: string) => Promise<UserPlaylist | null>
+	deletePlaylist: (playlistId: string) => Promise<void>
 	setTracks: (tracks: TrackWithPlaylist[]) => void
 }
 
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
 	tracks: [],
+	userPlaylists: [],
+	deviceId: null,
 	isLoading: false,
 	error: null,
 	isOffline: false,
@@ -28,15 +69,37 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
 			console.log('🚀 Fetching tracks from API...')
 			const response = await api.tracks.getAll({ limit: 100 })
 			console.log(`✅ API connected! Loaded ${response.data.length} tracks from server`)
-			set({ tracks: response.data, isLoading: false, isOffline: false })
+
+			const deviceId = await getOrCreateDeviceId()
+			set({ tracks: response.data, deviceId, isLoading: false, isOffline: false })
+
+			get().fetchUserPlaylists()
 		} catch (error) {
 			console.warn('⚠️ API unavailable, using local data:', error)
+
 			set({
 				tracks: library as TrackWithPlaylist[],
+				userPlaylists: [],
 				isLoading: false,
 				isOffline: true,
 				error: null,
 			})
+		}
+	},
+
+	fetchUserPlaylists: async () => {
+		const isOffline = get().isOffline
+		if (isOffline) return
+
+		try {
+			const deviceId = get().deviceId || (await getOrCreateDeviceId())
+			console.log('📂 Fetching user playlists...')
+			const playlists = await api.userPlaylists.getAll(deviceId)
+			const mappedPlaylists = playlists.map(mapUserPlaylistResponse)
+			console.log(`✅ Loaded ${mappedPlaylists.length} user playlists`)
+			set({ userPlaylists: mappedPlaylists, deviceId })
+		} catch (error) {
+			console.error('Failed to fetch user playlists:', error)
 		}
 	},
 
@@ -74,32 +137,100 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
 		}
 	},
 
-	addToPlaylist: async (track, playlistName) => {
-		const currentTracks = get().tracks
+	addToPlaylist: async (track, playlistId) => {
+		const currentPlaylists = get().userPlaylists
 		const isOffline = get().isOffline
+		const trackWithId = get().tracks.find((t) => t.url === track.url)
 
 		set({
-			tracks: currentTracks.map((currentTrack) => {
-				if (currentTrack.url === track.url) {
+			userPlaylists: currentPlaylists.map((playlist) => {
+				if (playlist._id === playlistId) {
 					return {
-						...currentTrack,
-						playlist: [...(currentTrack.playlist ?? []), playlistName],
+						...playlist,
+						tracks: [...playlist.tracks, track as TrackWithPlaylist],
+						trackCount: playlist.trackCount + 1,
 					}
 				}
-				return currentTrack
+				return playlist
 			}),
 		})
+
+		if (isOffline || !trackWithId?._id) return
+
+		try {
+			await api.userPlaylists.addTrack(playlistId, trackWithId._id)
+			console.log(`✅ Added track to playlist`)
+		} catch (error) {
+			set({ userPlaylists: currentPlaylists })
+			console.error('Failed to add to playlist:', error)
+		}
+	},
+
+	removeFromPlaylist: async (track, playlistId) => {
+		const currentPlaylists = get().userPlaylists
+		const isOffline = get().isOffline
+		const trackWithId = get().tracks.find((t) => t.url === track.url)
+
+		set({
+			userPlaylists: currentPlaylists.map((playlist) => {
+				if (playlist._id === playlistId) {
+					return {
+						...playlist,
+						tracks: playlist.tracks.filter((t) => t.url !== track.url),
+						trackCount: playlist.trackCount - 1,
+					}
+				}
+				return playlist
+			}),
+		})
+
+		if (isOffline || !trackWithId?._id) return
+
+		try {
+			await api.userPlaylists.removeTrack(playlistId, trackWithId._id)
+			console.log(`✅ Removed track from playlist`)
+		} catch (error) {
+			set({ userPlaylists: currentPlaylists })
+			console.error('Failed to remove from playlist:', error)
+		}
+	},
+
+	createPlaylist: async (playlistName) => {
+		const isOffline = get().isOffline
+		if (isOffline) {
+			console.warn('Cannot create playlist while offline')
+			return null
+		}
+
+		try {
+			const deviceId = get().deviceId || (await getOrCreateDeviceId())
+			console.log(`📝 Creating playlist: ${playlistName}`)
+			const response = await api.userPlaylists.create({ name: playlistName, deviceId })
+			const newPlaylist = mapUserPlaylistResponse(response)
+
+			set({ userPlaylists: [...get().userPlaylists, newPlaylist] })
+			console.log(`✅ Created playlist: ${playlistName}`)
+			return newPlaylist
+		} catch (error) {
+			console.error('Failed to create playlist:', error)
+			throw error
+		}
+	},
+
+	deletePlaylist: async (playlistId) => {
+		const currentPlaylists = get().userPlaylists
+		const isOffline = get().isOffline
+
+		set({ userPlaylists: currentPlaylists.filter((p) => p._id !== playlistId) })
 
 		if (isOffline) return
 
 		try {
-			const trackWithId = currentTracks.find((t) => t.url === track.url)
-			if (trackWithId?._id) {
-				await api.tracks.addToPlaylist(trackWithId._id, playlistName)
-			}
+			await api.userPlaylists.delete(playlistId)
+			console.log(`🗑️ Deleted playlist`)
 		} catch (error) {
-			set({ tracks: currentTracks })
-			console.error('Failed to add to playlist:', error)
+			set({ userPlaylists: currentPlaylists })
+			console.error('Failed to delete playlist:', error)
 		}
 	},
 }))
@@ -142,28 +273,30 @@ export const useArtists = () =>
 		}, [] as Artist[])
 	})
 
+export const useUserPlaylists = () => {
+	const userPlaylists = useLibraryStore((state) => state.userPlaylists)
+	const addToPlaylist = useLibraryStore((state) => state.addToPlaylist)
+	const removeFromPlaylist = useLibraryStore((state) => state.removeFromPlaylist)
+	const createPlaylist = useLibraryStore((state) => state.createPlaylist)
+	const deletePlaylist = useLibraryStore((state) => state.deletePlaylist)
+
+	return { userPlaylists, addToPlaylist, removeFromPlaylist, createPlaylist, deletePlaylist }
+}
+
 export const usePlaylists = () => {
-	const playlists = useLibraryStore((state) => {
-		return state.tracks.reduce((acc, track) => {
-			track.playlist?.forEach((playlistName) => {
-				const existingPlaylist = acc.find((playlist) => playlist.name === playlistName)
+	const userPlaylists = useLibraryStore((state) => state.userPlaylists)
 
-				if (existingPlaylist) {
-					existingPlaylist.tracks.push(track)
-				} else {
-					acc.push({
-						name: playlistName,
-						tracks: [track],
-						artworkPreview: track.artwork ?? unknownTrackImageUri,
-					})
-				}
-			})
-
-			return acc
-		}, [] as Playlist[])
-	})
+	const playlists: Playlist[] = userPlaylists.map((up) => ({
+		name: up.name,
+		tracks: up.tracks,
+		artworkPreview: up.artwork || (up.tracks[0]?.artwork as string) || unknownTrackImageUri,
+		_id: up._id,
+	}))
 
 	const addToPlaylist = useLibraryStore((state) => state.addToPlaylist)
+	const removeFromPlaylist = useLibraryStore((state) => state.removeFromPlaylist)
+	const createPlaylist = useLibraryStore((state) => state.createPlaylist)
+	const deletePlaylist = useLibraryStore((state) => state.deletePlaylist)
 
-	return { playlists, addToPlaylist }
+	return { playlists, addToPlaylist, removeFromPlaylist, createPlaylist, deletePlaylist }
 }

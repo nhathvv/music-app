@@ -38,6 +38,18 @@ interface PlaylistResponse {
 	artworkPreview?: string
 }
 
+export interface UserPlaylistResponse {
+	_id: string
+	name: string
+	description?: string
+	artwork?: string
+	isPublic: boolean
+	tracks: TrackResponse[]
+	trackCount: number
+	createdAt: string
+	updatedAt: string
+}
+
 const handleResponse = async <T>(response: Response): Promise<T> => {
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({ message: 'Unknown error' }))
@@ -217,6 +229,74 @@ export const api = {
 			)
 			const track = await handleResponse<TrackResponse>(response)
 			return mapTrackResponse(track)
+		},
+	},
+
+	userPlaylists: {
+		getAll: async (deviceId?: string): Promise<UserPlaylistResponse[]> => {
+			const searchParams = new URLSearchParams()
+			if (deviceId) searchParams.append('deviceId', deviceId)
+
+			const url = `${API_BASE_URL}/user-playlists${searchParams.toString() ? `?${searchParams}` : ''}`
+			const response = await fetch(url)
+			return handleResponse<UserPlaylistResponse[]>(response)
+		},
+
+		getById: async (id: string): Promise<UserPlaylistResponse> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists/${id}`)
+			return handleResponse<UserPlaylistResponse>(response)
+		},
+
+		create: async (data: {
+			name: string
+			deviceId?: string
+			description?: string
+			trackIds?: string[]
+		}): Promise<UserPlaylistResponse> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			})
+			return handleResponse<UserPlaylistResponse>(response)
+		},
+
+		update: async (
+			id: string,
+			data: { name?: string; description?: string }
+		): Promise<UserPlaylistResponse> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			})
+			return handleResponse<UserPlaylistResponse>(response)
+		},
+
+		delete: async (id: string): Promise<void> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists/${id}`, {
+				method: 'DELETE',
+			})
+			if (!response.ok) {
+				const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+				throw new Error(error.message || `HTTP error! status: ${response.status}`)
+			}
+		},
+
+		addTrack: async (playlistId: string, trackId: string): Promise<UserPlaylistResponse> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists/${playlistId}/tracks`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ trackId }),
+			})
+			return handleResponse<UserPlaylistResponse>(response)
+		},
+
+		removeTrack: async (playlistId: string, trackId: string): Promise<UserPlaylistResponse> => {
+			const response = await fetch(`${API_BASE_URL}/user-playlists/${playlistId}/tracks/${trackId}`, {
+				method: 'DELETE',
+			})
+			return handleResponse<UserPlaylistResponse>(response)
 		},
 	},
 }

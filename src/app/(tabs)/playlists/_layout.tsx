@@ -1,12 +1,13 @@
 import { StackScreenWithSearchBar } from '@/constants/layout'
-import { colors } from '@/constants/tokens'
-import { defaultStyles } from '@/styles'
+import { useTheme } from '@/store/theme'
 import { Stack } from 'expo-router'
 import { View } from 'react-native'
 
 const PlaylistsScreenLayout = () => {
+	const colors = useTheme()
+
 	return (
-		<View style={defaultStyles.container}>
+		<View style={{ flex: 1, backgroundColor: colors.background }}>
 			<Stack>
 				<Stack.Screen
 					name="index"
