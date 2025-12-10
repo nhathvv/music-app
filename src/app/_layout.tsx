@@ -2,9 +2,10 @@ import { playbackService } from '@/constants/playbackService'
 import { colors } from '@/constants/tokens'
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState'
 import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer'
+import { useFetchTracks } from '@/store/library'
 import { SplashScreen, Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import TrackPlayer from 'react-native-track-player'
@@ -14,6 +15,8 @@ SplashScreen.preventAutoHideAsync()
 TrackPlayer.registerPlaybackService(() => playbackService)
 
 const App = () => {
+	const fetchTracks = useFetchTracks()
+
 	const handleTrackPlayerLoaded = useCallback(() => {
 		SplashScreen.hideAsync()
 	}, [])
@@ -23,6 +26,10 @@ const App = () => {
 	})
 
 	useLogTrackPlayerState()
+
+	useEffect(() => {
+		fetchTracks()
+	}, [fetchTracks])
 
 	return (
 		<SafeAreaProvider>
