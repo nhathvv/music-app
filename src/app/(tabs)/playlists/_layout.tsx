@@ -1,4 +1,3 @@
-import { StackScreenWithSearchBar } from '@/constants/layout'
 import { useTheme } from '@/store/theme'
 import { Stack } from 'expo-router'
 import { View } from 'react-native'
@@ -12,7 +11,13 @@ const PlaylistsScreenLayout = () => {
 				<Stack.Screen
 					name="index"
 					options={{
-						...StackScreenWithSearchBar,
+						headerLargeTitle: true,
+						headerLargeStyle: { backgroundColor: colors.background },
+						headerLargeTitleStyle: { color: colors.text },
+						headerTintColor: colors.text,
+						headerTransparent: true,
+						headerBlurEffect: 'prominent',
+						headerShadowVisible: false,
 						headerTitle: 'Playlists',
 					}}
 				/>

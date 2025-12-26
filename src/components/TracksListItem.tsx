@@ -1,8 +1,8 @@
 import { TrackShortcutsMenu } from '@/components/TrackShortcutsMenu'
 import { StopPropagation } from '@/components/utils/StopPropagation'
 import { unknownTrackImageUri } from '@/constants/images'
-import { colors, fontSize } from '@/constants/tokens'
-import { defaultStyles } from '@/styles'
+import { fontSize } from '@/constants/tokens'
+import { useTheme } from '@/store/theme'
 import { Entypo, Ionicons } from '@expo/vector-icons'
 import { StyleSheet, Text, TouchableHighlight, View } from 'react-native'
 import FastImage from 'react-native-fast-image'
@@ -18,6 +18,7 @@ export const TracksListItem = ({
 	track,
 	onTrackSelect: handleTrackSelect,
 }: TracksListItemProps) => {
+	const colors = useTheme()
 	const { playing } = useIsPlaying()
 
 	const isActiveTrack = useActiveTrack()?.url === track.url
@@ -62,20 +63,19 @@ export const TracksListItem = ({
 						alignItems: 'center',
 					}}
 				>
-					{/* Track title + artist */}
 					<View style={{ width: '100%' }}>
 						<Text
 							numberOfLines={1}
-							style={{
-								...styles.trackTitleText,
-								color: isActiveTrack ? colors.primary : colors.text,
-							}}
+							style={[
+								styles.trackTitleText,
+								{ color: isActiveTrack ? colors.primary : colors.text },
+							]}
 						>
 							{track.title}
 						</Text>
 
 						{track.artist && (
-							<Text numberOfLines={1} style={styles.trackArtistText}>
+							<Text numberOfLines={1} style={[styles.trackArtistText, { color: colors.textMuted }]}>
 								{track.artist}
 							</Text>
 						)}
@@ -117,14 +117,11 @@ const styles = StyleSheet.create({
 		height: 50,
 	},
 	trackTitleText: {
-		...defaultStyles.text,
 		fontSize: fontSize.sm,
 		fontWeight: '600',
 		maxWidth: '90%',
 	},
 	trackArtistText: {
-		...defaultStyles.text,
-		color: colors.textMuted,
 		fontSize: 14,
 		marginTop: 4,
 	},

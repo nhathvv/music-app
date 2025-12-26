@@ -126,6 +126,76 @@ export const api = {
 			const track = await handleResponse<TrackResponse>(response)
 			return mapTrackResponse(track)
 		},
+
+		create: async (data: {
+			url: string
+			title: string
+			artist?: string
+			artwork?: string
+			rating?: number
+			playlist?: string[]
+			duration?: number
+			genre?: string
+		}): Promise<TrackWithPlaylist> => {
+			const response = await fetch(`${API_BASE_URL}/tracks`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			})
+			const track = await handleResponse<TrackResponse>(response)
+			return mapTrackResponse(track)
+		},
+
+		createMany: async (
+			tracks: Array<{
+				url: string
+				title: string
+				artist?: string
+				artwork?: string
+				rating?: number
+				playlist?: string[]
+				duration?: number
+				genre?: string
+			}>
+		): Promise<TrackWithPlaylist[]> => {
+			const response = await fetch(`${API_BASE_URL}/tracks/bulk`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(tracks),
+			})
+			const result = await handleResponse<TrackResponse[]>(response)
+			return result.map(mapTrackResponse)
+		},
+
+		update: async (
+			id: string,
+			data: Partial<{
+				title: string
+				artist: string
+				artwork: string
+				rating: number
+				duration: number
+				genre: string
+			}>
+		): Promise<TrackWithPlaylist> => {
+			const response = await fetch(`${API_BASE_URL}/tracks/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			})
+			const track = await handleResponse<TrackResponse>(response)
+			return mapTrackResponse(track)
+		},
+
+		delete: async (id: string): Promise<void> => {
+			const response = await fetch(`${API_BASE_URL}/tracks/${id}`, {
+				method: 'DELETE',
+			})
+			if (!response.ok) {
+				const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+				throw new Error(error.message || `HTTP error! status: ${response.status}`)
+			}
+		},
 	},
 
 	favorites: {

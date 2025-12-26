@@ -1,12 +1,14 @@
 import { ArtistTracksList } from '@/components/ArtistTracksList'
 import { screenPadding } from '@/constants/tokens'
 import { useArtists } from '@/store/library'
+import { useTheme } from '@/store/theme'
 import { defaultStyles } from '@/styles'
 import { Redirect, useLocalSearchParams } from 'expo-router'
 import { View } from 'react-native'
 import { ScrollView } from 'react-native-gesture-handler'
 
 const ArtistDetailScreen = () => {
+	const colors = useTheme()
 	const { name: artistName } = useLocalSearchParams<{ name: string }>()
 
 	const artists = useArtists()
@@ -20,7 +22,7 @@ const ArtistDetailScreen = () => {
 	}
 
 	return (
-		<View style={defaultStyles.container}>
+		<View style={[defaultStyles.container, { backgroundColor: colors.background }]}>
 			<ScrollView
 				contentInsetAdjustmentBehavior="automatic"
 				style={{ paddingHorizontal: screenPadding.horizontal }}

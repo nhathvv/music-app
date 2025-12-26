@@ -38,6 +38,17 @@ const mapUserPlaylistResponse = (playlist: UserPlaylistResponse): UserPlaylist =
 	updatedAt: playlist.updatedAt,
 })
 
+export interface CreateTrackData {
+	url: string
+	title: string
+	artist?: string
+	artwork?: string
+	rating?: number
+	playlist?: string[]
+	duration?: number
+	genre?: string
+}
+
 interface LibraryState {
 	tracks: TrackWithPlaylist[]
 	userPlaylists: UserPlaylist[]
@@ -53,6 +64,9 @@ interface LibraryState {
 	createPlaylist: (playlistName: string) => Promise<UserPlaylist | null>
 	deletePlaylist: (playlistId: string) => Promise<void>
 	setTracks: (tracks: TrackWithPlaylist[]) => void
+	createTrack: (data: CreateTrackData) => Promise<TrackWithPlaylist | null>
+	updateTrack: (id: string, data: Partial<CreateTrackData>) => Promise<TrackWithPlaylist | null>
+	deleteTrack: (id: string) => Promise<boolean>
 }
 
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
@@ -233,6 +247,70 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
 			console.error('Failed to delete playlist:', error)
 		}
 	},
+
+	createTrack: async (data) => {
+		const isOffline = get().isOffline
+		if (isOffline) {
+			console.warn('Cannot create track while offline')
+			return null
+		}
+
+		try {
+			console.log(`🎵 Creating track: ${data.title}`)
+			const newTrack = await api.tracks.create(data)
+			set({ tracks: [...get().tracks, newTrack] })
+			console.log(`✅ Created track: ${data.title}`)
+			return newTrack
+		} catch (error) {
+			console.error('Failed to create track:', error)
+			throw error
+		}
+	},
+
+	updateTrack: async (id, data) => {
+		const isOffline = get().isOffline
+		const currentTracks = get().tracks
+
+		if (isOffline) {
+			console.warn('Cannot update track while offline')
+			return null
+		}
+
+		try {
+			console.log(`📝 Updating track: ${id}`)
+			const updatedTrack = await api.tracks.update(id, data)
+			set({
+				tracks: currentTracks.map((t) => (t._id === id ? updatedTrack : t)),
+			})
+			console.log(`✅ Updated track: ${updatedTrack.title}`)
+			return updatedTrack
+		} catch (error) {
+			console.error('Failed to update track:', error)
+			throw error
+		}
+	},
+
+	deleteTrack: async (id) => {
+		const isOffline = get().isOffline
+		const currentTracks = get().tracks
+
+		if (isOffline) {
+			console.warn('Cannot delete track while offline')
+			return false
+		}
+
+		set({ tracks: currentTracks.filter((t) => t._id !== id) })
+
+		try {
+			await api.tracks.delete(id)
+			console.log(`🗑️ Deleted track`)
+			return true
+		} catch (error) {
+			set({ tracks: currentTracks })
+			console.error('Failed to delete track:', error)
+			return false
+		}
+	},
 }))
 
 export const useTracks = () => useLibraryStore((state) => state.tracks)
@@ -299,4 +377,13 @@ export const usePlaylists = () => {
 	const deletePlaylist = useLibraryStore((state) => state.deletePlaylist)
 
 	return { playlists, addToPlaylist, removeFromPlaylist, createPlaylist, deletePlaylist }
+}
+
+export const useTrackActions = () => {
+	const createTrack = useLibraryStore((state) => state.createTrack)
+	const updateTrack = useLibraryStore((state) => state.updateTrack)
+	const deleteTrack = useLibraryStore((state) => state.deleteTrack)
+	const isOffline = useLibraryStore((state) => state.isOffline)
+
+	return { createTrack, updateTrack, deleteTrack, isOffline }
 }

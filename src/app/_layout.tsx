@@ -79,6 +79,20 @@ const RootNavigation = () => {
 						},
 					}}
 				/>
+
+				<Stack.Screen
+					name="(modals)/createTrack"
+					options={{
+						presentation: 'modal',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTitle: 'Create New Track',
+						headerTitleStyle: {
+							color: colors.text,
+						},
+					}}
+				/>
 			</Stack>
 			<StatusBar style={isDark ? 'light' : 'dark'} />
 		</>

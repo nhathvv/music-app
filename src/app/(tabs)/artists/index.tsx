@@ -3,6 +3,7 @@ import { screenPadding } from '@/constants/tokens'
 import { artistNameFilter } from '@/helpers/filter'
 import { useNavigationSearch } from '@/hooks/useNavigationSearch'
 import { useArtists } from '@/store/library'
+import { useTheme } from '@/store/theme'
 import { defaultStyles, utilsStyles } from '@/styles'
 import { Link } from 'expo-router'
 import { useMemo } from 'react'
@@ -15,6 +16,7 @@ const ItemSeparatorComponent = () => {
 }
 
 const ArtistsScreen = () => {
+	const colors = useTheme()
 	const search = useNavigationSearch({
 		searchBarOptions: {
 			placeholder: 'Find in artists',
@@ -30,7 +32,7 @@ const ArtistsScreen = () => {
 	}, [artists, search])
 
 	return (
-		<View style={defaultStyles.container}>
+		<View style={[defaultStyles.container, { backgroundColor: colors.background }]}>
 			<ScrollView
 				style={{ paddingHorizontal: screenPadding.horizontal }}
 				contentInsetAdjustmentBehavior="automatic"
@@ -42,7 +44,7 @@ const ArtistsScreen = () => {
 					ListFooterComponent={ItemSeparatorComponent}
 					ListEmptyComponent={
 						<View>
-							<Text>No artist found</Text>
+							<Text style={{ color: colors.textMuted }}>No artist found</Text>
 
 							<FastImage
 								source={{
@@ -70,7 +72,7 @@ const ArtistsScreen = () => {
 										</View>
 
 										<View style={{ width: '100%' }}>
-											<Text numberOfLines={1} style={styles.artistNameText}>
+											<Text numberOfLines={1} style={[styles.artistNameText, { color: colors.text }]}>
 												{artist.name}
 											</Text>
 										</View>
